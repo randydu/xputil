@@ -158,3 +158,78 @@ void plugin_init(xp::IBus* srv){
     if(lic->isLangLicensed("CN")) man->add(new TInterface<CTranslateCN>()));
 }
 ```
+
+
+
+## Serialize
+
+C++ object serialize is very important for data persistence, xputil provides a core ISerialize interface and some helper templates:
+
+```c++
+
+#include <xputil/intf_serialize.h>
+
+class Employee {
+    private:
+        int _age;
+        std::string _name;
+        float _salary;
+    public:
+        void serialize(ISerialize& sr){
+            sr | _age | _name | _salary; // pipe-line style serialize
+        }
+};
+
+class Company {
+    private:
+        std::string _name; //company name
+        std::string _addr; //address
+        std::vector<Employee*> _men;
+    
+    public:
+        void serialize(ISerialize& sr){
+            sr | _name | _addr;
+
+            serialize_array_dummy(sr, _men);
+        }
+
+        ~Company(){
+            for(auto& e: _men) delete e;
+        }
+};
+
+
+// save to file
+#include <xputil/file_serialize.h>
+Company corp;
+{
+    auto_ref<ISerialize> sr(file_writer::create("/tmp/test.dat"));
+    sr | corp; // or: sr << corp;
+}
+
+//read from file
+{
+    auto_ref<ISerialize> sr(file_reader::create("/tmp/test.dat"));
+    sr | corp; // or: sr >> corp;
+}
+
+//save to memory
+#include <xputil/mem_serialize.h>
+Company aCorp;
+auto_ref<memory_writer> sr(memory_writer::create());
+sr | aCorp;
+
+int size = sr->lenght();
+const void* pData = sr->memory();
+
+//[pData, pData + size) is transferred to another machine...
+
+//read from memory
+Company bCorp;
+auto_ref<ISerialize> sr(memory_reader::create(pData, size, false));
+sr | bCorp;
+
+
+
+
+```
