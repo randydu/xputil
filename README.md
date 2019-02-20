@@ -54,8 +54,8 @@ public:
     }
     virtual std::string translate(std::string id, std::string input) override {
         for(auto& trans: _translators){
-            if(id == trans.lang()){
-                return trans.translate(input);
+            if(id == trans->lang()){
+                return trans->translate(input);
             }
         }
         throw "lang not supported";
@@ -135,3 +135,26 @@ void plugin_init(xp::IBus* srv){
 ```
 
 If an app can be implemented in many small sub-modules, each module implements a subset of related interfaces, then the whole system will be easy to maintain, one module can upgrade without affecting other modules, there is no need to export multiple module-specific apis across the module boundary, all modules communicate via predefined interface.
+
+
+For example, if the main app has implemented a per-lang license:
+
+```c++
+INTERFACE ILicense: public IInterfaceEx {
+    virtual bool isLangLicensed(const char* langId) const = 0;
+}
+```
+
+In the translator plugins, we can publish the translator service interface according to the current license status:
+
+```c++
+void plugin_init(xp::IBus* srv){
+    using namespace xp;
+
+    auto_ref<ILicense> lic(srv); //route to ILicense interface
+    auto_ref<ITranslatorMan> man(srv); //route to ITranslatorMan interface
+
+    if(lic->isLangLicensed("SP")) man->add(new TInterface<CTranslateSpanish>());
+    if(lic->isLangLicensed("CN")) man->add(new TInterface<CTranslateCN>()));
+}
+```
